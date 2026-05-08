@@ -1,0 +1,50 @@
+# LiteLLM proxy config — claude-fallback-nvidia
+# Routes Claude Code (Anthropic Messages API) → NVIDIA NIM (OpenAI-compatible).
+
+# YAML anchor: shared list of Anthropic-only params to drop before forwarding
+# to NVIDIA. Keep in sync if Anthropic adds new top-level params.
+_anthropic_drop: &anthropic_drop
+  - output_config
+  - cache_control
+  - thinking
+  - metadata
+  - anthropic_beta
+  - anthropic_version
+  - service_tier
+
+model_list:
+  # ─── Tier 1: deep / high-quality (claude-deep) ────────────────────────────
+  - model_name: kimi-k2
+    litellm_params:
+      model: nvidia_nim/moonshotai/kimi-k2.6
+      api_key: os.environ/NVIDIA_API_KEY
+      api_base: https://integrate.api.nvidia.com/v1
+      drop_params: true
+      additional_drop_params: *anthropic_drop
+
+  # ─── Tier 2: fast / routine (claude-fast) ─────────────────────────────────
+  - model_name: qwen3-next
+    litellm_params:
+      model: nvidia_nim/qwen/qwen3-next-80b-a3b-instruct
+      api_key: os.environ/NVIDIA_API_KEY
+      api_base: https://integrate.api.nvidia.com/v1
+      drop_params: true
+      additional_drop_params: *anthropic_drop
+
+  # ─── Catch-all: Claude Code internally requests claude-opus-4-7 / haiku-* ─
+  # Default these to qwen3-next (cheaper, faster) so the small/fast model slot
+  # works even when no specific mapping exists.
+  - model_name: "*"
+    litellm_params:
+      model: nvidia_nim/qwen/qwen3-next-80b-a3b-instruct
+      api_key: os.environ/NVIDIA_API_KEY
+      api_base: https://integrate.api.nvidia.com/v1
+      drop_params: true
+      additional_drop_params: *anthropic_drop
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

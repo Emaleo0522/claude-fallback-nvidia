@@ -1,0 +1,14 @@
+# Never commit secrets / runtime artifacts
+env.sh
+env.ps1
+*.pid
+*.log
+.venv/
+
+# Editor / OS junk
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.bak
+__pycache__/

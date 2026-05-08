@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Launch Claude Code routed to NVIDIA Kimi K2.6 (deep / high quality).
+# Use for: complex debugging, architecture, refactors, decisions.
+# Slower than `claude-fast` but stronger reasoning.
+set -euo pipefail
+
+INSTALL_DIR="${LITELLM_INSTALL_DIR:-$HOME/litellm-proxy}"
+
+# Load master key + NVIDIA key + LITELLM_PORT from the installed env.sh
+if [[ ! -f "$INSTALL_DIR/env.sh" ]]; then
+  echo "error: $INSTALL_DIR/env.sh not found. Did you run install.sh?"
+  exit 1
+fi
+# shellcheck disable=SC1091
+source "$INSTALL_DIR/env.sh"
+PROXY_URL="http://127.0.0.1:${LITELLM_PORT:-4000}"
+
+# Probe the proxy; auto-start if down
+if ! curl -fsS --max-time 2 "$PROXY_URL/health/liveness" >/dev/null 2>&1; then
+  echo "litellm proxy not reachable. starting it..."
+  "$INSTALL_DIR/start.sh"
+  for _ in 1 2 3 4 5 6 7 8; do
+    sleep 1
+    curl -fsS --max-time 2 "$PROXY_URL/health/liveness" >/dev/null 2>&1 && break
+  done
+fi
+
+export ANTHROPIC_BASE_URL="$PROXY_URL"
+export ANTHROPIC_AUTH_TOKEN="$LITELLM_MASTER_KEY"
+export ANTHROPIC_MODEL="kimi-k2"
+export ANTHROPIC_SMALL_FAST_MODEL="qwen3-next"
+unset ANTHROPIC_API_KEY 2>/dev/null || true
+
+echo "→ Claude Code → LiteLLM → NVIDIA Kimi K2.6 (deep / high quality)"
+echo "  small/fast slot: qwen3-next"
+exec claude "$@"
