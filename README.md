@@ -111,6 +111,16 @@ That's it. The installer prompts for your API key, sets up a local proxy, and te
 
 The wrappers (`claude-deep`, `claude-fast`) are thin shell scripts that auto-start the proxy if it's not running, set the right environment variables, then `exec claude`. Claude Code itself is **not** modified — when you run `claude` directly, you still hit Anthropic.
 
+### Augmentations layered on top
+
+The proxy is not a dumb passthrough. It applies three transparent improvements that compensate for the fact that Kimi/Qwen are not as well-calibrated for Claude Code workflows as native Claude is:
+
+1. **System-prompt boost** (`system_boost.md` + `custom_boost.py`). Before each request leaves the proxy, a fixed text is prepended to the system prompt. It contains hard rules — "Read before Edit", "no invented APIs", brevity, Engram protocol, plan-then-execute — that Kimi/Qwen don't apply by default but mostly will when told.
+2. **Auto-fallback** (`fallbacks` in `config.yaml`). If `kimi-k2` fails (timeout, NVIDIA `DEGRADED`, 5xx), the proxy retries the same request against `qwen3-next` automatically. The user sees one slightly slower response instead of an error.
+3. **Connection warmup** (in `start.sh`). When the proxy launches, it fires one tiny request in the background so the upstream TLS handshake to NVIDIA is paid by the warmup, not by your first real prompt.
+
+Cost note: the boost adds ~1100 input tokens to every request. With NVIDIA free-tier credits at ~5,000/month, that meaningfully shortens your monthly budget but typically pays for itself in fewer retries / better-quality first attempts.
+
 ---
 
 ## Requirements

@@ -101,11 +101,14 @@ icacls "$InstallDir\env.ps1" /inheritance:r /grant:r "$($env:USERNAME):R" | Out-
 OK "wrote env.ps1 (ACL: read-only for $env:USERNAME)"
 
 # ── 6. Install templates ──────────────────────────────────────────────────
-Say "installing config + scripts ..."
-Copy-Item $ConfigSrc                            "$InstallDir\config.yaml" -Force
-Copy-Item "$TemplatesDir\start.ps1"             "$InstallDir\start.ps1"   -Force
-Copy-Item "$TemplatesDir\stop.ps1"              "$InstallDir\stop.ps1"    -Force
-OK "installed to $InstallDir"
+Say "installing config + scripts + boost ..."
+$LinuxTemplates = Join-Path $RepoDir 'linux\templates'  # boost files are OS-agnostic
+Copy-Item $ConfigSrc                            "$InstallDir\config.yaml"     -Force
+Copy-Item "$TemplatesDir\start.ps1"             "$InstallDir\start.ps1"       -Force
+Copy-Item "$TemplatesDir\stop.ps1"              "$InstallDir\stop.ps1"        -Force
+Copy-Item "$LinuxTemplates\custom_boost.py"     "$InstallDir\custom_boost.py" -Force
+Copy-Item "$LinuxTemplates\system_boost.md"     "$InstallDir\system_boost.md" -Force
+OK "installed to $InstallDir (config + scripts + system prompt boost)"
 
 # ── 7. Install wrappers ───────────────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null

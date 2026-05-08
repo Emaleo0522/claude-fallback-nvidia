@@ -62,11 +62,15 @@ chmod 600 "$INSTALL_DIR/env.sh"
 ### 5. Copy templates
 
 Copy these from this repo's `linux/templates/` to `$INSTALL_DIR/`:
-- `config.yaml`
-- `start.sh`
-- `stop.sh`
+- `config.yaml` — proxy routing config
+- `start.sh` — starts proxy in background, sets `PYTHONPATH`, fires warmup
+- `stop.sh` — kills the proxy
+- `custom_boost.py` — LiteLLM callback that injects the system-prompt boost
+- `system_boost.md` — the boost text itself (rules for Kimi/Qwen behavior)
 
 Make the scripts executable: `chmod +x "$INSTALL_DIR"/{start,stop}.sh`.
+
+The proxy needs `custom_boost.py` to be importable as a Python module. `start.sh` adds the install dir to `PYTHONPATH` before launching `litellm`. Do not move `custom_boost.py` outside `$INSTALL_DIR`.
 
 ### 6. Install wrappers
 

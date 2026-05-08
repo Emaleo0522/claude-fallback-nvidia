@@ -133,12 +133,14 @@ chmod 600 "$INSTALL_DIR/env.sh"
 ok "wrote env.sh (perms: 600)"
 
 # ── 6. Install templates ────────────────────────────────────────────────────
-say "installing config + scripts ..."
-cp "$TEMPLATES_DIR/config.yaml" "$INSTALL_DIR/config.yaml"
-cp "$TEMPLATES_DIR/start.sh"    "$INSTALL_DIR/start.sh"
-cp "$TEMPLATES_DIR/stop.sh"     "$INSTALL_DIR/stop.sh"
+say "installing config + scripts + boost ..."
+cp "$TEMPLATES_DIR/config.yaml"      "$INSTALL_DIR/config.yaml"
+cp "$TEMPLATES_DIR/start.sh"         "$INSTALL_DIR/start.sh"
+cp "$TEMPLATES_DIR/stop.sh"          "$INSTALL_DIR/stop.sh"
+cp "$TEMPLATES_DIR/custom_boost.py"  "$INSTALL_DIR/custom_boost.py"
+cp "$TEMPLATES_DIR/system_boost.md"  "$INSTALL_DIR/system_boost.md"
 chmod +x "$INSTALL_DIR/start.sh" "$INSTALL_DIR/stop.sh"
-ok "installed to $INSTALL_DIR"
+ok "installed to $INSTALL_DIR (config + scripts + system prompt boost)"
 
 # ── 7. Install wrappers ────────────────────────────────────────────────────
 say "installing wrappers to $BIN_DIR ..."

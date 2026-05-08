@@ -1,5 +1,6 @@
 # LiteLLM proxy config — claude-fallback-nvidia
 # Routes Claude Code (Anthropic Messages API) → NVIDIA NIM (OpenAI-compatible).
+# Augmented with system-prompt boost (custom_boost.py) and Kimi→Qwen fallback.
 
 # YAML anchor: shared list of Anthropic-only params to drop before forwarding
 # to NVIDIA. Keep in sync if Anthropic adds new top-level params.
@@ -12,39 +13,50 @@ _anthropic_drop: &anthropic_drop
   - anthropic_version
   - service_tier
 
+# Shared NVIDIA endpoint anchor
+_nvidia_base: &nvidia_base
+  api_key: os.environ/NVIDIA_API_KEY
+  api_base: https://integrate.api.nvidia.com/v1
+  drop_params: true
+  additional_drop_params: *anthropic_drop
+  # Latency-based fallback: if NVIDIA hasn't started returning bytes in 25s,
+  # consider the call dead and try the fallback model.
+  timeout: 25
+  # Retry on transient errors (5xx, network errors) before giving up to fallback.
+  num_retries: 1
+
 model_list:
   # ─── Tier 1: deep / high-quality (claude-deep) ────────────────────────────
   - model_name: kimi-k2
     litellm_params:
+      <<: *nvidia_base
       model: nvidia_nim/moonshotai/kimi-k2.6
-      api_key: os.environ/NVIDIA_API_KEY
-      api_base: https://integrate.api.nvidia.com/v1
-      drop_params: true
-      additional_drop_params: *anthropic_drop
 
   # ─── Tier 2: fast / routine (claude-fast) ─────────────────────────────────
   - model_name: qwen3-next
     litellm_params:
+      <<: *nvidia_base
       model: nvidia_nim/qwen/qwen3-next-80b-a3b-instruct
-      api_key: os.environ/NVIDIA_API_KEY
-      api_base: https://integrate.api.nvidia.com/v1
-      drop_params: true
-      additional_drop_params: *anthropic_drop
 
   # ─── Catch-all: Claude Code internally requests claude-opus-4-7 / haiku-* ─
-  # Default these to qwen3-next (cheaper, faster) so the small/fast model slot
-  # works even when no specific mapping exists.
   - model_name: "*"
     litellm_params:
+      <<: *nvidia_base
       model: nvidia_nim/qwen/qwen3-next-80b-a3b-instruct
-      api_key: os.environ/NVIDIA_API_KEY
-      api_base: https://integrate.api.nvidia.com/v1
-      drop_params: true
-      additional_drop_params: *anthropic_drop
 
 litellm_settings:
   drop_params: true
   set_verbose: false
+
+  # Inject system_boost.md before forwarding to NVIDIA. Implemented in
+  # custom_boost.py at $INSTALL_DIR/custom_boost.py.
+  callbacks: ["custom_boost.booster"]
+
+  # Fallback rules: if the named model errors out or times out, try the next
+  # model in the list. Engages on 5xx, timeouts, DEGRADED responses.
+  fallbacks:
+    - kimi-k2: ["qwen3-next"]
+    # qwen3-next has no further fallback — it's the cheapest/fastest tier.
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
