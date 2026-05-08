@@ -7,13 +7,17 @@
 
 > Run **Claude Code** against **NVIDIA-hosted free-tier models** when your Anthropic plan tokens run out — without ever leaving the `claude` CLI you already know.
 
-A local LiteLLM proxy translates between Anthropic's Messages API (what Claude Code speaks) and NVIDIA's OpenAI-compatible endpoint, exposing two ready-to-use wrappers:
+A local LiteLLM proxy translates between Anthropic's Messages API (what Claude Code speaks) and NVIDIA's OpenAI-compatible endpoint. Depending on which CLI you have installed, the installer hands you ready-to-use wrappers:
 
-| Command | Backend model | Use it for |
-|---------|--------------|------------|
-| `claude-deep` | `moonshotai/kimi-k2.6` (1T MoE) | Architecture, debugging, refactors, decisions |
-| `claude-fast` | `qwen/qwen3-next-80b-a3b-instruct` (80B MoE) | HTML/CSS, scripts, fixes, exploration |
-| `claude` | (untouched — your normal Anthropic plan) | When you have tokens, use the real thing |
+| Command | Available when | Backend model | Use it for |
+|---------|---------------|--------------|------------|
+| `claude-deep` | Claude Code installed | `moonshotai/kimi-k2.6` (1T MoE) | Architecture, debugging, refactors, decisions |
+| `claude-fast` | Claude Code installed | `qwen/qwen3-next-80b-a3b-instruct` (80B MoE) | HTML/CSS, scripts, fixes, exploration |
+| `aider-deep` | Aider installed | `moonshotai/kimi-k2.6` | Same as claude-deep, but via Aider — **no Anthropic account needed** |
+| `aider-fast` | Aider installed | `qwen/qwen3-next-80b-a3b-instruct` | Same as claude-fast, via Aider |
+| `claude` | (untouched) | Your normal Anthropic plan | When you have tokens, use the real thing |
+
+**Don't have Claude Code or an Anthropic account?** The installer will detect that and offer to install **Aider** instead — an open-source CLI alternative that talks to the same proxy and uses the same NVIDIA backend models. No login, no Anthropic account.
 
 ---
 
@@ -56,7 +60,7 @@ When you hit the cap, you wait or pay. NVIDIA offers **free hosted inference** o
 
 ---
 
-## Quick start
+## Quick start (for terminal users)
 
 ```bash
 # 1. Get a free NVIDIA API key
@@ -69,13 +73,103 @@ bash linux/install.sh        # Linux/macOS
 # or:
 powershell -ExecutionPolicy Bypass -File windows\install.ps1   # Windows
 
-# 3. Use
-claude-deep      # for complex tasks
-claude-fast      # for routine tasks
-claude           # untouched — your Anthropic plan
+# 3. Use (open a new terminal first)
+claude-deep      # complex tasks
+claude-fast      # routine tasks
+aider-deep       # if you chose Aider, no Anthropic account needed
+aider-fast
 ```
 
-That's it. The installer prompts for your API key, sets up a local proxy, and tests both routes. Open a new terminal and you're done.
+The installer prompts for your API key, detects which CLI you have, sets up a local proxy, and tests both routes.
+
+---
+
+## Step-by-step install (no terminal experience required)
+
+This guide assumes you've never opened a terminal before. Follow it in order. Don't skip steps.
+
+### What you'll need
+
+- A computer with Linux or Windows.
+- About 15 minutes.
+- An email address (only for the NVIDIA signup — they don't ask for a credit card).
+
+### Step 1 — Get your free NVIDIA key
+
+1. Open your web browser and go to: **https://build.nvidia.com**
+2. Click "Sign up" (top-right) and create a free account with your email.
+3. Once logged in, look for "API Keys" in the menu (sometimes under your profile icon).
+4. Click "Generate API Key". A long string starting with `nvapi-` will appear.
+5. **Copy it.** Save it somewhere safe (like a notes app). You won't see it again after closing the page.
+
+### Step 2 — Open a Terminal
+
+A "terminal" is just an app where you type commands.
+
+**Linux (Mint / Ubuntu / similar):**
+- Press the keys `Ctrl` + `Alt` + `T` at the same time.
+- A black or dark window will open. That's the terminal.
+
+**Windows:**
+- Press the Windows key, type `PowerShell`, and click on "Windows PowerShell".
+- A blue window will open. That's PowerShell — the Windows version of a terminal.
+
+### Step 3 — Copy and paste the install commands
+
+> Tip: in a terminal, copy works as `Ctrl+C` and paste is **`Ctrl+Shift+V`** on Linux, or `Ctrl+V` on Windows. You can also right-click and choose "Paste".
+
+Copy the following lines, paste them into your terminal, and press Enter:
+
+**Linux:**
+```bash
+git clone https://github.com/Emaleo0522/claude-fallback-nvidia.git
+cd claude-fallback-nvidia
+bash linux/install.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/Emaleo0522/claude-fallback-nvidia.git
+cd claude-fallback-nvidia
+powershell -ExecutionPolicy Bypass -File windows\install.ps1
+```
+
+> If `git` is not installed, the terminal will tell you. Install it from <https://git-scm.com/downloads> and try again.
+> If `python3` is not installed, the installer will tell you exactly what to install. Follow its message.
+
+### Step 4 — Answer the installer's questions
+
+The installer will ask a few things. Read each prompt carefully — they're in plain English. Typical flow:
+
+- **"Pick an install mode: 1 / 2 / 3 / 4"** → if you don't have an Anthropic (Claude) account and don't want one, type `2` (Aider) and press Enter. If you do have Claude, type `1`. If unsure, `2` is safe.
+- **"NVIDIA_API_KEY:"** → paste the key you saved in Step 1 and press Enter. (Note: the text won't appear as you paste — that's normal, it's hidden for security.)
+
+The installer will then download things, set up the local server, and run two tests. **It can take 2–3 minutes.** Don't close the terminal. You'll see lines starting with `→`, `✓`, and `!`. The end result should be a green message saying `install complete`.
+
+### Step 5 — Use it
+
+**Close** the current terminal and **open a new one** (Step 2 again). This refreshes the system so it sees the new commands.
+
+In the new terminal, type one of the following and press Enter:
+
+- `claude-deep` (if you installed with Claude Code) — for complex tasks
+- `claude-fast` (if you installed with Claude Code) — for routine tasks
+- `aider-deep` (if you installed with Aider) — for complex tasks
+- `aider-fast` (if you installed with Aider) — for routine tasks
+
+You'll get a chat-like prompt where you can describe what you want, just like ChatGPT. The AI is now using free NVIDIA models behind the scenes.
+
+### What if something goes wrong?
+
+| You see | What it means | What to do |
+|---------|--------------|------------|
+| `git: command not found` | Git isn't installed | Install Git from <https://git-scm.com/downloads> and retry |
+| `python3 not found` or `venv module not available` | Python or the venv module is missing | Linux: `sudo apt install python3 python3-venv` then retry. Windows: install Python from <https://python.org> with the "Add to PATH" checkbox |
+| `port 4000 is already in use` | Another program is using the same network slot | Restart your computer, then try again |
+| `qwen3-next test failed` at the end | Your NVIDIA key is wrong or expired | Repeat Step 1 to get a fresh key, then re-run the installer |
+| `command not found: claude-fast` (or aider-fast) | Your terminal hasn't refreshed PATH | Close the terminal completely and open a new one. If still broken, the installer printed a line at the end saying which line to add to your shell config — copy and paste it |
+
+If none of the above match your error, copy the last 20 lines of red/yellow output and open an issue at <https://github.com/Emaleo0522/claude-fallback-nvidia/issues>.
 
 ---
 
@@ -154,16 +248,27 @@ cd claude-fallback-nvidia
 bash linux/install.sh
 ```
 
-The installer is interactive. It will:
+The installer is interactive and **adapts to what's on the machine**:
 
-1. Verify dependencies (`claude`, `python3`, `python3-venv`, `curl`, free port 4000).
-2. Detect any prior install at `~/litellm-proxy/` and ask before overwriting (it backs up to `~/litellm-proxy.backup-YYYYMMDD-HHMMSS`).
-3. Prompt for your NVIDIA API key (input is hidden, must start with `nvapi-`).
+- If both `claude` and `aider` are present → installs all four wrappers.
+- If only `claude` is present → installs `claude-deep` / `claude-fast`. Asks if you also want Aider.
+- If only `aider` is present → installs `aider-deep` / `aider-fast`. Asks if you want to add Claude Code.
+- If **neither** is present → asks you to choose:
+  1. Install Claude Code automatically
+  2. Install Aider (recommended if you don't want an Anthropic account)
+  3. Install both
+  4. Just the proxy (you'll bring your own client)
+
+Steps it always runs:
+
+1. Verify base dependencies (`python3`, `python3-venv`, `curl`, free port 4000).
+2. Detect any prior install at `~/litellm-proxy/` and ask before overwriting (backs up to `~/litellm-proxy.backup-YYYYMMDD-HHMMSS`).
+3. Prompt for your NVIDIA API key (hidden input, must start with `nvapi-`).
 4. Create a Python virtualenv at `~/litellm-proxy/.venv` and install LiteLLM.
 5. Generate a random master key for the local proxy.
 6. Write `~/litellm-proxy/env.sh` (chmod 600) with both keys.
-7. Copy templates: `config.yaml`, `start.sh`, `stop.sh`.
-8. Install the wrappers `claude-deep` and `claude-fast` to `~/.local/bin/`.
+7. Copy proxy templates: `config.yaml`, `start.sh`, `stop.sh`, `custom_boost.py`, `system_boost.md`.
+8. Install whichever wrappers apply to `~/.local/bin/`.
 9. Start the proxy and run smoke tests against both `qwen3-next` and `kimi-k2`.
 
 If `~/.local/bin` is not in your `PATH`, the installer warns you and shows the line to add to your shell rc file:
@@ -221,20 +326,22 @@ Sample prompt to give the agent:
 
 ## Usage
 
-Open a new terminal and pick a wrapper based on the task:
+Open a new terminal and pick a wrapper based on the task. Use whichever set was installed on your machine:
 
+**With Claude Code:**
 ```bash
-# Complex stuff: architecture, debugging, refactors, decisions
-claude-deep
-
-# Routine stuff: HTML/CSS, scripts, exploration, small fixes
-claude-fast
-
-# Anthropic (your real Claude plan, untouched)
-claude
+claude-deep      # complex tasks (Kimi K2.6)
+claude-fast      # routine tasks (Qwen3-Next 80B)
+claude           # your normal Anthropic plan, untouched
 ```
 
-Each wrapper exports the right environment variables and `exec claude` — once inside, you use Claude Code normally: `/help`, `/model`, slash commands, MCPs, file edits, the works.
+**With Aider (no Anthropic account required):**
+```bash
+aider-deep       # complex tasks (Kimi K2.6)
+aider-fast       # routine tasks (Qwen3-Next 80B)
+```
+
+Each wrapper auto-starts the proxy if needed, exports the right env vars, then `exec`s the underlying CLI (`claude` or `aider`). Once inside, the CLI works normally — slash commands, file edits, git integration, MCPs (Claude Code), etc.
 
 ### Notes on running both backends in the same project
 

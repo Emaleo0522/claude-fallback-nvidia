@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 # claude-fallback-nvidia — interactive installer for Linux/macOS.
-# Sets up a local LiteLLM proxy + claude-deep / claude-fast wrappers that route
-# Claude Code to NVIDIA-hosted free-tier models.
+#
+# Sets up a local LiteLLM proxy that routes to NVIDIA-hosted free-tier models
+# (Kimi K2.6, Qwen3-Next 80B). Adapts to what's available on the machine:
+#
+#   Mode A — claude:     installs claude-deep / claude-fast (needs Claude Code)
+#   Mode B — aider:      installs aider-deep / aider-fast (needs Aider)
+#   Mode C — both:       installs all four wrappers
+#   Mode D — proxy-only: just the proxy, you bring your own client
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATES_DIR="$REPO_DIR/linux/templates"
 
-# ── Colors (only if stdout is a tty) ────────────────────────────────────────
+# ── Colors ───────────────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
   C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'
   C_GREEN=$'\033[32m'; C_RED=$'\033[31m'
@@ -21,7 +27,7 @@ warn()  { echo "${C_YELLOW}!${C_RESET} $*"; }
 fail()  { echo "${C_RED}✗${C_RESET} $*" >&2; }
 hr()    { echo "${C_BOLD}────────────────────────────────────────────${C_RESET}"; }
 
-# ── 1. Pre-flight ───────────────────────────────────────────────────────────
+# ── 1. Pre-flight ─────────────────────────────────────────────────────────
 hr
 say "claude-fallback-nvidia installer"
 hr
@@ -32,26 +38,17 @@ PORT="${LITELLM_PORT:-4000}"
 
 say "checking dependencies..."
 
-# claude
-if ! command -v claude >/dev/null 2>&1; then
-  fail "Claude Code (\`claude\`) is not in PATH."
-  echo "    Install it first: https://docs.anthropic.com/en/docs/claude-code"
-  exit 1
-fi
-CLAUDE_BIN="$(command -v claude)"
-ok "found claude: $CLAUDE_BIN"
-
 # python3
 if ! command -v python3 >/dev/null 2>&1; then
   fail "python3 not found. Install Python 3.10+ first."
   exit 1
 fi
 PY_VERSION="$(python3 --version 2>&1 | awk '{print $2}')"
-ok "found python3: $PY_VERSION"
+ok "python3: $PY_VERSION"
 
-# python3-venv (probe by trying to create a temporary venv)
+# python3-venv
 if ! python3 -m venv --help >/dev/null 2>&1; then
-  fail "python3 venv module is not available."
+  fail "python3 venv module not available."
   echo "    Debian/Ubuntu/Mint: sudo apt install python3-venv"
   echo "    Fedora:             sudo dnf install python3-virtualenv"
   exit 1
@@ -71,7 +68,93 @@ if ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "(:|\\.)$PORT\$"; then
 fi
 ok "port $PORT is free"
 
-# ── 2. Existing install? ────────────────────────────────────────────────────
+# ── 2. Detect CLI clients + decide install mode ──────────────────────────
+hr
+HAS_CLAUDE=false
+HAS_AIDER=false
+command -v claude >/dev/null 2>&1 && HAS_CLAUDE=true
+command -v aider  >/dev/null 2>&1 && HAS_AIDER=true
+
+INSTALL_CLAUDE=false
+INSTALL_AIDER=false
+
+if $HAS_CLAUDE && $HAS_AIDER; then
+  ok "found Claude Code: $(command -v claude)"
+  ok "found Aider: $(command -v aider)"
+  echo "Both clients are available. Will install wrappers for both."
+  INSTALL_CLAUDE=true
+  INSTALL_AIDER=true
+
+elif $HAS_CLAUDE && ! $HAS_AIDER; then
+  ok "found Claude Code: $(command -v claude)"
+  INSTALL_CLAUDE=true
+  read -r -p "Also install Aider (open-source CLI alternative)? [y/N] " ans
+  [[ "${ans,,}" =~ ^y(es)?$ ]] && INSTALL_AIDER=true
+
+elif ! $HAS_CLAUDE && $HAS_AIDER; then
+  warn "Claude Code not found; Aider is available."
+  ok "found Aider: $(command -v aider)"
+  INSTALL_AIDER=true
+  echo
+  echo "Options:"
+  echo "  1) Install Claude Code automatically (binary, no Anthropic account required to download)"
+  echo "  2) Continue with Aider only (recommended if you don't want an Anthropic account)"
+  read -r -p "Choice [1/2, default 2]: " choice
+  if [[ "$choice" == "1" ]]; then
+    say "downloading Claude Code installer..."
+    if curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh; then
+      bash /tmp/claude-install.sh && INSTALL_CLAUDE=true
+      command -v claude >/dev/null 2>&1 || warn "claude installed but not yet in PATH; open a new shell after install."
+    else
+      warn "could not download Claude Code installer; continuing with Aider only."
+    fi
+  fi
+
+else
+  warn "Neither Claude Code nor Aider found in PATH."
+  echo
+  echo "Pick an install mode:"
+  echo "  1) Install Claude Code     — if you'll use the official Anthropic CLI"
+  echo "  2) Install Aider           — open-source alternative, no Anthropic account needed"
+  echo "  3) Install both"
+  echo "  4) Proxy only              — you'll bring your own client (Cline, OpenCode, etc.)"
+  read -r -p "Choice [1/2/3/4, default 2]: " choice
+  case "${choice:-2}" in
+    1)
+      say "downloading Claude Code installer..."
+      curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh
+      bash /tmp/claude-install.sh && INSTALL_CLAUDE=true || fail "Claude Code install failed."
+      ;;
+    2) INSTALL_AIDER=true ;;
+    3)
+      say "downloading Claude Code installer..."
+      curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh
+      bash /tmp/claude-install.sh && INSTALL_CLAUDE=true || warn "Claude Code install failed; continuing with Aider."
+      INSTALL_AIDER=true
+      ;;
+    4)
+      warn "proxy-only mode — no CLI wrappers will be installed."
+      ;;
+    *)
+      fail "invalid choice."
+      exit 1
+      ;;
+  esac
+fi
+
+# Install Aider via pip if requested and not yet present
+if $INSTALL_AIDER && ! command -v aider >/dev/null 2>&1; then
+  say "installing Aider via pip --user (this may take a minute) ..."
+  if python3 -m pip install --user --quiet aider-chat 2>/dev/null; then
+    ok "aider installed"
+  elif python3 -m pip install --user --break-system-packages --quiet aider-chat 2>/dev/null; then
+    ok "aider installed (with --break-system-packages)"
+  else
+    warn "could not install aider via pip. Install manually later: pipx install aider-chat"
+  fi
+fi
+
+# ── 3. Existing install? ─────────────────────────────────────────────────
 if [[ -d "$INSTALL_DIR" ]]; then
   warn "an install already exists at $INSTALL_DIR"
   read -r -p "Overwrite? [y/N] " ans
@@ -81,41 +164,36 @@ if [[ -d "$INSTALL_DIR" ]]; then
       mv "$INSTALL_DIR" "$BACKUP"
       ok "moved existing install to $BACKUP"
       ;;
-    *)
-      echo "aborted."
-      exit 0
-      ;;
+    *) echo "aborted."; exit 0 ;;
   esac
 fi
 
-# ── 3. NVIDIA API key ───────────────────────────────────────────────────────
+# ── 4. NVIDIA API key ────────────────────────────────────────────────────
 hr
 echo "Get a free NVIDIA API key at: https://build.nvidia.com  (~5000 credits/month)"
-echo "Paste it here. It must start with 'nvapi-'. Input is hidden."
+echo "Paste it here. Must start with 'nvapi-'. Input is hidden."
 while true; do
   read -r -s -p "NVIDIA_API_KEY: " NVIDIA_API_KEY
   echo
-  if [[ "$NVIDIA_API_KEY" =~ ^nvapi-.+$ ]]; then
-    break
-  fi
+  [[ "$NVIDIA_API_KEY" =~ ^nvapi-.+$ ]] && break
   warn "invalid format — should start with 'nvapi-'. try again."
 done
 ok "API key recorded (length: ${#NVIDIA_API_KEY})"
 
-# ── 4. Create venv + install LiteLLM ────────────────────────────────────────
+# ── 5. Create venv + install LiteLLM ─────────────────────────────────────
 hr
 say "creating Python venv at $INSTALL_DIR/.venv ..."
 mkdir -p "$INSTALL_DIR"
 python3 -m venv "$INSTALL_DIR/.venv"
 ok "venv created"
 
-say "installing LiteLLM (this can take 1-2 minutes) ..."
+say "installing LiteLLM (1-2 minutes) ..."
 "$INSTALL_DIR/.venv/bin/pip" install --quiet --upgrade pip
 "$INSTALL_DIR/.venv/bin/pip" install --quiet 'litellm[proxy]'
 LITELLM_VERSION="$("$INSTALL_DIR/.venv/bin/litellm" --version 2>&1 | head -1)"
 ok "$LITELLM_VERSION"
 
-# ── 5. Generate master key + write env.sh ───────────────────────────────────
+# ── 6. Generate master key + write env.sh ────────────────────────────────
 if command -v openssl >/dev/null 2>&1; then
   MASTER_KEY="sk-litellm-$(openssl rand -hex 16)"
 else
@@ -124,7 +202,6 @@ fi
 
 cat > "$INSTALL_DIR/env.sh" <<EOF
 # claude-fallback-nvidia — generated $(date -Iseconds)
-# Source this file to load the proxy credentials.
 export NVIDIA_API_KEY=${NVIDIA_API_KEY}
 export LITELLM_MASTER_KEY=${MASTER_KEY}
 export LITELLM_PORT=${PORT}
@@ -132,7 +209,7 @@ EOF
 chmod 600 "$INSTALL_DIR/env.sh"
 ok "wrote env.sh (perms: 600)"
 
-# ── 6. Install templates ────────────────────────────────────────────────────
+# ── 7. Install proxy templates ───────────────────────────────────────────
 say "installing config + scripts + boost ..."
 cp "$TEMPLATES_DIR/config.yaml"      "$INSTALL_DIR/config.yaml"
 cp "$TEMPLATES_DIR/start.sh"         "$INSTALL_DIR/start.sh"
@@ -140,33 +217,52 @@ cp "$TEMPLATES_DIR/stop.sh"          "$INSTALL_DIR/stop.sh"
 cp "$TEMPLATES_DIR/custom_boost.py"  "$INSTALL_DIR/custom_boost.py"
 cp "$TEMPLATES_DIR/system_boost.md"  "$INSTALL_DIR/system_boost.md"
 chmod +x "$INSTALL_DIR/start.sh" "$INSTALL_DIR/stop.sh"
-ok "installed to $INSTALL_DIR (config + scripts + system prompt boost)"
+ok "installed proxy to $INSTALL_DIR"
 
-# ── 7. Install wrappers ────────────────────────────────────────────────────
-say "installing wrappers to $BIN_DIR ..."
+# ── 8. Install wrappers ──────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
-cp "$TEMPLATES_DIR/claude-deep" "$BIN_DIR/claude-deep"
-cp "$TEMPLATES_DIR/claude-fast" "$BIN_DIR/claude-fast"
-chmod +x "$BIN_DIR/claude-deep" "$BIN_DIR/claude-fast"
+INSTALLED_WRAPPERS=()
+
+if $INSTALL_CLAUDE; then
+  cp "$TEMPLATES_DIR/claude-deep" "$BIN_DIR/claude-deep"
+  cp "$TEMPLATES_DIR/claude-fast" "$BIN_DIR/claude-fast"
+  chmod +x "$BIN_DIR/claude-deep" "$BIN_DIR/claude-fast"
+  INSTALLED_WRAPPERS+=("claude-deep" "claude-fast")
+fi
+if $INSTALL_AIDER; then
+  cp "$TEMPLATES_DIR/aider-deep" "$BIN_DIR/aider-deep"
+  cp "$TEMPLATES_DIR/aider-fast" "$BIN_DIR/aider-fast"
+  chmod +x "$BIN_DIR/aider-deep" "$BIN_DIR/aider-fast"
+  INSTALLED_WRAPPERS+=("aider-deep" "aider-fast")
+fi
 
 # Patch INSTALL_DIR default if non-standard
-if [[ "$INSTALL_DIR" != "$HOME/litellm-proxy" ]]; then
-  sed -i.bak "s|\$HOME/litellm-proxy|$INSTALL_DIR|g" "$BIN_DIR/claude-deep" "$BIN_DIR/claude-fast"
-  rm -f "$BIN_DIR"/claude-deep.bak "$BIN_DIR"/claude-fast.bak
+if [[ "$INSTALL_DIR" != "$HOME/litellm-proxy" ]] && (( ${#INSTALLED_WRAPPERS[@]} > 0 )); then
+  for w in "${INSTALLED_WRAPPERS[@]}"; do
+    sed -i.bak "s|\$HOME/litellm-proxy|$INSTALL_DIR|g" "$BIN_DIR/$w"
+    rm -f "$BIN_DIR/$w.bak"
+  done
 fi
-ok "installed claude-deep, claude-fast"
+
+if (( ${#INSTALLED_WRAPPERS[@]} > 0 )); then
+  ok "installed wrappers: ${INSTALLED_WRAPPERS[*]}"
+else
+  ok "no CLI wrappers installed (proxy-only mode)"
+fi
 
 # Warn if BIN_DIR not in PATH
-case ":$PATH:" in
-  *":$BIN_DIR:"*) ok "$BIN_DIR is in PATH" ;;
-  *)
-    warn "$BIN_DIR is NOT in PATH"
-    echo "    Add this to ~/.bashrc (or ~/.zshrc) and re-source:"
-    echo "      export PATH=\"$BIN_DIR:\$PATH\""
-    ;;
-esac
+if (( ${#INSTALLED_WRAPPERS[@]} > 0 )); then
+  case ":$PATH:" in
+    *":$BIN_DIR:"*) ok "$BIN_DIR is in PATH" ;;
+    *)
+      warn "$BIN_DIR is NOT in PATH"
+      echo "    Add this to ~/.bashrc (or ~/.zshrc) and re-source:"
+      echo "      export PATH=\"$BIN_DIR:\$PATH\""
+      ;;
+  esac
+fi
 
-# ── 8. Start proxy ──────────────────────────────────────────────────────────
+# ── 9. Start proxy ───────────────────────────────────────────────────────
 hr
 say "starting proxy ..."
 "$INSTALL_DIR/start.sh"
@@ -185,20 +281,18 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
   fi
 done
 
-# ── 9. Smoke test ───────────────────────────────────────────────────────────
+# ── 10. Smoke test ───────────────────────────────────────────────────────
 say "smoke-testing qwen3-next route ..."
 RESP=$(curl -sS --max-time 60 -X POST "http://127.0.0.1:$PORT/v1/messages" \
   -H "Content-Type: application/json" \
   -H "x-api-key: $MASTER_KEY" \
   -H "anthropic-version: 2023-06-01" \
   -d '{"model":"qwen3-next","max_tokens":10,"messages":[{"role":"user","content":"reply ok"}]}')
-
 if echo "$RESP" | grep -q '"type":"message"'; then
   ok "qwen3-next responded"
 else
   fail "qwen3-next test failed:"
   echo "$RESP" | head -c 500
-  echo
   warn "the proxy is running but routing failed. Check NVIDIA_API_KEY validity."
   exit 1
 fi
@@ -215,20 +309,31 @@ else
   warn "kimi-k2 test failed (free tier may be saturated). qwen3-next still works."
 fi
 
-# ── 10. Done ────────────────────────────────────────────────────────────────
+# ── 11. Done ─────────────────────────────────────────────────────────────
 hr
 ok "${C_BOLD}install complete${C_RESET}"
 echo
-echo "  Use:"
-echo "    ${C_BOLD}claude-deep${C_RESET}   →  Kimi K2.6 (high quality, slower)"
-echo "    ${C_BOLD}claude-fast${C_RESET}   →  Qwen3-Next 80B (faster, routine)"
-echo "    ${C_BOLD}claude${C_RESET}        →  your normal Anthropic plan (untouched)"
+if $INSTALL_CLAUDE; then
+  echo "  Claude wrappers:"
+  echo "    ${C_BOLD}claude-deep${C_RESET}   →  Kimi K2.6"
+  echo "    ${C_BOLD}claude-fast${C_RESET}   →  Qwen3-Next 80B"
+fi
+if $INSTALL_AIDER; then
+  echo "  Aider wrappers:"
+  echo "    ${C_BOLD}aider-deep${C_RESET}    →  Kimi K2.6"
+  echo "    ${C_BOLD}aider-fast${C_RESET}    →  Qwen3-Next 80B"
+fi
+if ! $INSTALL_CLAUDE && ! $INSTALL_AIDER; then
+  echo "  Proxy-only. Point any OpenAI/Anthropic-compatible client at:"
+  echo "    base URL: http://127.0.0.1:$PORT"
+  echo "    api key:  (in $INSTALL_DIR/env.sh as LITELLM_MASTER_KEY)"
+  echo "    models:   kimi-k2, qwen3-next"
+fi
 echo
 echo "  Proxy:"
 echo "    start: $INSTALL_DIR/start.sh"
 echo "    stop:  $INSTALL_DIR/stop.sh"
 echo "    log:   $INSTALL_DIR/proxy.log"
 echo
-echo "  Open a new terminal (or re-source PATH) and try:"
-echo "    claude-fast"
+echo "  Open a new terminal (or re-source PATH) and try one of the wrappers."
 echo
