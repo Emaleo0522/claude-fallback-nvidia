@@ -92,13 +92,13 @@ The installer prompts for your API key, detects which CLI you have (or installs 
 
 This guide assumes you've never opened a terminal before. Follow it in order. Don't skip steps.
 
-### What you'll need
+### What you'll need (both platforms)
 
-- A computer with Linux or Windows.
+- A computer with **Linux** OR **Windows 10/11**.
 - About 15 minutes.
 - An email address (only for the NVIDIA signup — they don't ask for a credit card).
 
-### Step 1 — Get your free NVIDIA key
+### Step 1 — Get your free NVIDIA key (both platforms)
 
 1. Open your web browser and go to: **https://build.nvidia.com**
 2. Click "Sign up" (top-right) and create a free account with your email.
@@ -106,72 +106,128 @@ This guide assumes you've never opened a terminal before. Follow it in order. Do
 4. Click "Generate API Key". A long string starting with `nvapi-` will appear.
 5. **Copy it.** Save it somewhere safe (like a notes app). You won't see it again after closing the page.
 
-### Step 2 — Open a Terminal
+---
 
-A "terminal" is just an app where you type commands.
+### 🐧 Linux (Mint / Ubuntu / similar)
 
-**Linux (Mint / Ubuntu / similar):**
-- Press the keys `Ctrl` + `Alt` + `T` at the same time.
-- A black or dark window will open. That's the terminal.
+#### L-2 · Open a Terminal
 
-**Windows:**
-- Press the Windows key, type `PowerShell`, and click on "Windows PowerShell".
-- A blue window will open. That's PowerShell — the Windows version of a terminal.
+Press `Ctrl` + `Alt` + `T` at the same time. A dark window opens — that's the terminal.
 
-### Step 3 — Copy and paste the install commands
+> Tip: paste in the terminal is **`Ctrl+Shift+V`** (not the regular `Ctrl+V`). You can also right-click → Paste.
 
-> Tip: in a terminal, copy works as `Ctrl+C` and paste is **`Ctrl+Shift+V`** on Linux, or `Ctrl+V` on Windows. You can also right-click and choose "Paste".
+#### L-3 · Install required system packages (one-time)
 
-Copy the following lines, paste them into your terminal, and press Enter:
+Copy this whole block, paste, press Enter, type your password if asked:
 
-**Linux:**
+```bash
+sudo apt update
+sudo apt install -y python3-venv pipx git curl
+```
+
+#### L-4 · Clone and run the installer
+
+Copy these three lines and paste them, then press Enter:
+
 ```bash
 git clone https://github.com/Emaleo0522/claude-fallback-nvidia.git
 cd claude-fallback-nvidia
 bash linux/install.sh
 ```
 
-**Windows (PowerShell):**
+#### L-5 · Answer the installer
+
+- **"Pick an install mode"** → just press **Enter**. The default is **Aider**, which is what you want if you don't have an Anthropic account.
+- **"NVIDIA_API_KEY:"** → paste the key from Step 1 and press Enter. *The text stays hidden — that's normal, just paste and hit Enter.*
+
+Wait 2-3 minutes. You'll see green `✓` lines. When it says `install complete`, you're done.
+
+#### L-6 · Use it
+
+**Close the terminal completely** and open a new one (`Ctrl+Alt+T`). In the new terminal, type:
+
+```bash
+aider-fast    # routine tasks (fast, very reliable)
+aider-deep    # complex tasks (smarter, slower, can queue if NVIDIA is saturated)
+```
+
+A chat-like prompt opens. Type what you want, just like ChatGPT.
+
+---
+
+### 🪟 Windows 10 / 11
+
+#### W-2 · Install Python and Git (one-time)
+
+1. Download Python from <https://www.python.org/downloads/>. Run the installer. **VERY IMPORTANT:** on the first screen, check the box **"Add Python to PATH"** before clicking Install.
+2. Download Git from <https://git-scm.com/downloads>. Run the installer. Accept all defaults (just click Next several times).
+3. Restart the computer to be safe.
+
+#### W-3 · Open PowerShell
+
+Press the **Windows key**, type `PowerShell`, click **Windows PowerShell** (the blue icon). A dark blue window opens.
+
+> Tip: paste in PowerShell is **`Ctrl+V`** (regular paste, unlike Linux).
+
+#### W-4 · Clone and run the installer
+
+Copy these three lines and paste them, then press Enter after each:
+
 ```powershell
 git clone https://github.com/Emaleo0522/claude-fallback-nvidia.git
 cd claude-fallback-nvidia
 powershell -ExecutionPolicy Bypass -File windows\install.ps1
 ```
 
-> If `git` is not installed, the terminal will tell you. Install it from <https://git-scm.com/downloads> and try again.
-> If `python3` is not installed, the installer will tell you exactly what to install. Follow its message.
+#### W-5 · Answer the installer
 
-### Step 4 — Answer the installer's questions
+- **"Pick an install mode"** → just press **Enter**. The default on Windows is **Aider**, which is what you want if you don't have an Anthropic account.
+- **"NVIDIA_API_KEY:"** → paste the key from Step 1 and press Enter. *The text stays hidden — that's normal.*
 
-The installer will ask a few things. Read each prompt carefully — they're in plain English. Typical flow:
+Wait 2-3 minutes. You'll see green `✓` lines.
 
-- **"Pick an install mode: 1 / 2 / 3 / 4"** → if you don't have an Anthropic (Claude) account and don't want one, type `2` (Aider) and press Enter. If you do have Claude, type `1`. If unsure, `2` is safe.
-- **"NVIDIA_API_KEY:"** → paste the key you saved in Step 1 and press Enter. (Note: the text won't appear as you paste — that's normal, it's hidden for security.)
+#### W-6 · Fix PATH (only if the installer printed a warning about it)
 
-The installer will then download things, set up the local server, and run two tests. **It can take 2–3 minutes.** Don't close the terminal. You'll see lines starting with `→`, `✓`, and `!`. The end result should be a green message saying `install complete`.
+If near the end of the installer output you see a yellow line like `! %USERPROFILE%\bin is NOT in PATH`, copy and paste this command into PowerShell **exactly once**:
 
-### Step 5 — Use it
+```powershell
+[Environment]::SetEnvironmentVariable('Path', "$env:Path;$env:USERPROFILE\bin", 'User')
+```
 
-**Close** the current terminal and **open a new one** (Step 2 again). This refreshes the system so it sees the new commands.
+Then **close PowerShell completely** and re-open a new one (Step W-3 again).
 
-In the new terminal, type one of the following and press Enter:
+If the installer did NOT print that warning, skip this step.
 
-- `claude-deep` (if you installed with Claude Code) — for complex tasks
-- `claude-fast` (if you installed with Claude Code) — for routine tasks
-- `aider-deep` (if you installed with Aider) — for complex tasks
-- `aider-fast` (if you installed with Aider) — for routine tasks
+#### W-7 · Use it
 
-You'll get a chat-like prompt where you can describe what you want, just like ChatGPT. The AI is now using free NVIDIA models behind the scenes.
+In a new PowerShell window, type:
+
+```powershell
+aider-fast.ps1    # routine tasks (fast, very reliable)
+aider-deep.ps1    # complex tasks (smarter, slower, can queue if NVIDIA is saturated)
+```
+
+A chat-like prompt opens. Type what you want, just like ChatGPT.
+
+---
 
 ### What if something goes wrong?
 
-| You see | What it means | What to do |
-|---------|--------------|------------|
-| `git: command not found` | Git isn't installed | Install Git from <https://git-scm.com/downloads> and retry |
-| `python3 not found` or `venv module not available` | Python or the venv module is missing | Linux: `sudo apt install python3 python3-venv` then retry. Windows: install Python from <https://python.org> with the "Add to PATH" checkbox |
-| `port 4000 is already in use` | Another program is using the same network slot | Restart your computer, then try again |
-| `qwen3-next test failed` at the end | Your NVIDIA key is wrong or expired | Repeat Step 1 to get a fresh key, then re-run the installer |
-| `command not found: claude-fast` (or aider-fast) | Your terminal hasn't refreshed PATH | Close the terminal completely and open a new one. If still broken, the installer printed a line at the end saying which line to add to your shell config — copy and paste it |
+| You see | Platform | What it means | What to do |
+|---------|----------|--------------|------------|
+| `git: command not found` | Linux | Git isn't installed | `sudo apt install git` and retry |
+| `git is not recognized` | Windows | Git isn't installed or PATH not refreshed | Install Git from <https://git-scm.com/downloads>, restart PowerShell |
+| `python3 not found` / `venv module not available` | Linux | Python or venv missing | `sudo apt install python3 python3-venv` then retry |
+| `python is not recognized` | Windows | Python missing OR "Add to PATH" was unchecked at install | Uninstall Python, reinstall with **"Add Python to PATH"** checked, restart PowerShell |
+| `port 4000 is already in use` | Both | Another program (or a previous run) is using the port | Restart the computer, then re-run the installer |
+| `qwen3-next test failed` at the end | Both | Your NVIDIA key is wrong, expired, or rate-limited | Repeat Step 1 to get a fresh key, then re-run the installer |
+| `aider-fast: command not found` | Linux | Terminal hasn't refreshed PATH | Close the terminal, open a new one. If still broken, run `export PATH="$HOME/.local/bin:$PATH"` and retry |
+| `aider-fast.ps1: cannot be loaded` | Windows | Script execution is blocked (rare) | Run once: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` then re-open PowerShell |
+| `aider-fast.ps1: is not recognized` | Windows | `%USERPROFILE%\bin` not in PATH | Run Step W-6, close and re-open PowerShell |
+| `could not install Aider` (script aborts) | Linux | `pip`/`pipx`/`apt` all failed (very old distro) | Run `sudo apt install pipx && pipx install aider-chat && pipx ensurepath`, then re-run the installer |
+| `could not install Aider, and no other CLI was selected` | Windows | pipx couldn't install | Run `python -m pip install --user pipx`, then `python -m pipx install aider-chat`, then `python -m pipx ensurepath`. Close PowerShell, re-open, re-run the installer |
+| `kimi-k2 test failed` (only a warning) | Both | NVIDIA's free tier of Kimi is saturated this moment | Ignore — qwen3-next works, use `aider-fast`. Try `aider-deep` later |
+| `aider-deep` hangs on "waiting for openai/kimi-k2" | Both | NVIDIA Kimi K2 free tier is temporarily saturated | Wait 1-3 minutes OR press Ctrl+C and use `aider-fast` instead |
 
 If none of the above match your error, copy the last 20 lines of red/yellow output and open an issue at <https://github.com/Emaleo0522/claude-fallback-nvidia/issues>.
 
