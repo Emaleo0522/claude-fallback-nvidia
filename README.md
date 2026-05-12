@@ -297,7 +297,15 @@ bash linux/install.sh
 
 ### Windows
 
-> **Heads-up:** the Windows installer is best-effort and untested on a real Windows machine. If you hit issues, opening a [WSL](https://learn.microsoft.com/en-us/windows/wsl/) shell and using the Linux installer is the most reliable route.
+> **Heads-up:** the Windows installer is best-effort. If you hit issues, opening a [WSL](https://learn.microsoft.com/en-us/windows/wsl/) shell and using the Linux installer is the most reliable route.
+
+#### Prerequisites (one-time)
+
+1. **Python 3.10+** from [python.org](https://www.python.org/downloads/) — at install time check ✅ **"Add Python to PATH"**.
+2. **Git** from [git-scm.com](https://git-scm.com/downloads).
+3. **Open PowerShell as a normal user** (no admin required for the installer itself).
+
+#### Install
 
 ```powershell
 git clone https://github.com/Emaleo0522/claude-fallback-nvidia.git
@@ -305,11 +313,22 @@ cd claude-fallback-nvidia
 powershell -ExecutionPolicy Bypass -File windows\install.ps1
 ```
 
-The installer mirrors the Linux flow but uses Windows-native idioms:
+The installer detects which CLIs are on your machine and adapts (same logic as Linux):
 
-- Default `INSTALL_DIR`: `%USERPROFILE%\litellm-proxy`
-- Default `BIN_DIR`: `%USERPROFILE%\bin`
-- Wrappers are PowerShell scripts: `claude-deep.ps1`, `claude-fast.ps1`
+- If **neither** Claude Code nor Aider is present → asks you to pick a mode:
+  - **`1`** → install **Aider** (open-source, **no Anthropic account needed**). The installer drops it in via `pipx`. **Press Enter to take this default.**
+  - **`2`** → install Claude Code (you'll be told to install it manually from anthropic.com and re-run).
+  - **`3`** → install both.
+  - **`4`** → proxy only.
+- If only **Claude Code** is present → installs `claude-deep.ps1` / `claude-fast.ps1`; asks if you also want Aider.
+- If only **Aider** is present → installs `aider-deep.ps1` / `aider-fast.ps1`.
+- If **both** → installs all four wrappers.
+
+#### Defaults
+
+- `INSTALL_DIR`: `%USERPROFILE%\litellm-proxy`
+- `BIN_DIR`: `%USERPROFILE%\bin`
+- Wrappers: `claude-deep.ps1`, `claude-fast.ps1`, `aider-deep.ps1`, `aider-fast.ps1`
 - `env.ps1` is locked down with NTFS ACLs: only the current user can read it
 - Background process management uses `Start-Process` with `proxy.pid`
 
@@ -318,6 +337,19 @@ If `%USERPROFILE%\bin` is not in your `PATH`, add it (PowerShell, current user):
 ```powershell
 [Environment]::SetEnvironmentVariable('Path', "$env:Path;$env:USERPROFILE\bin", 'User')
 ```
+
+Then **close PowerShell and open a new window** for the change to take effect.
+
+#### Usage (Windows)
+
+In a new PowerShell window:
+
+```powershell
+aider-fast.ps1     # routine tasks — fastest, most reliable on NVIDIA free tier
+aider-deep.ps1     # complex tasks — uses Kimi K2.6 (slower; may queue when saturated)
+```
+
+(or `claude-deep.ps1` / `claude-fast.ps1` if you installed with Claude Code.)
 
 ---
 
