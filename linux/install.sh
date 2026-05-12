@@ -114,10 +114,13 @@ else
   warn "Neither Claude Code nor Aider found in PATH."
   echo
   echo "Pick an install mode:"
-  echo "  1) Install Claude Code     — if you'll use the official Anthropic CLI"
-  echo "  2) Install Aider           — open-source alternative, no Anthropic account needed"
+  echo "  1) Install Claude Code     — requires an Anthropic account to use"
+  echo "  2) Install Aider           — open-source, NO Anthropic account required (recommended)"
   echo "  3) Install both"
   echo "  4) Proxy only              — you'll bring your own client (Cline, OpenCode, etc.)"
+  echo
+  echo "If you don't have a Claude / Anthropic account and just want the free NVIDIA models,"
+  echo "press Enter (defaults to 2)."
   read -r -p "Choice [1/2/3/4, default 2]: " choice
   case "${choice:-2}" in
     1)
@@ -142,15 +145,73 @@ else
   esac
 fi
 
-# Install Aider via pip if requested and not yet present
+# Install Aider via pip/pipx if requested and not yet present.
+# Robust against PEP 668 ("externally-managed-environment") on Debian/Ubuntu/Mint 23.04+.
 if $INSTALL_AIDER && ! command -v aider >/dev/null 2>&1; then
+  AIDER_INSTALLED=false
+
+  # Attempt 1: pip --user (works on older distros + venvs)
   say "installing Aider via pip --user (this may take a minute) ..."
   if python3 -m pip install --user --quiet aider-chat 2>/dev/null; then
-    ok "aider installed"
-  elif python3 -m pip install --user --break-system-packages --quiet aider-chat 2>/dev/null; then
-    ok "aider installed (with --break-system-packages)"
-  else
-    warn "could not install aider via pip. Install manually later: pipx install aider-chat"
+    ok "aider installed via pip --user"
+    AIDER_INSTALLED=true
+  fi
+
+  # Attempt 2: pipx (the right tool on modern Debian/Ubuntu/Mint)
+  if ! $AIDER_INSTALLED; then
+    if ! command -v pipx >/dev/null 2>&1; then
+      say "pipx not found; attempting to install it (needed on modern Debian/Ubuntu/Mint) ..."
+      # Try apt first (most reliable on Debian-family), then pip --user as fallback.
+      if command -v apt-get >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+        sudo apt-get install -y pipx >/dev/null 2>&1 || true
+      fi
+      if ! command -v pipx >/dev/null 2>&1; then
+        python3 -m pip install --user --quiet --break-system-packages pipx 2>/dev/null || true
+        # Add ~/.local/bin to PATH for the current shell so we can use pipx now.
+        export PATH="$HOME/.local/bin:$PATH"
+      fi
+    fi
+    if command -v pipx >/dev/null 2>&1; then
+      say "installing Aider via pipx ..."
+      if pipx install aider-chat >/dev/null 2>&1; then
+        ok "aider installed via pipx"
+        AIDER_INSTALLED=true
+        # Make sure pipx's bin dir is in PATH for the current shell so smoke tests find aider.
+        pipx ensurepath >/dev/null 2>&1 || true
+        export PATH="$HOME/.local/bin:$PATH"
+      fi
+    fi
+  fi
+
+  # Attempt 3: last-resort --break-system-packages on PEP 668 systems
+  if ! $AIDER_INSTALLED; then
+    if python3 -m pip install --user --break-system-packages --quiet aider-chat 2>/dev/null; then
+      ok "aider installed (--break-system-packages)"
+      AIDER_INSTALLED=true
+    fi
+  fi
+
+  # If all three attempts failed we have to decide based on the install mode:
+  #   - Aider-only (no Claude planned) → ABORT with clear instructions, since
+  #     copying aider-deep/aider-fast wrappers without an `aider` binary would
+  #     give a confusing error later.
+  #   - Mixed (Claude + Aider) → warn and continue with Claude wrappers only.
+  if ! $AIDER_INSTALLED; then
+    if $INSTALL_CLAUDE; then
+      warn "could not install Aider. Continuing with Claude wrappers only."
+      warn "To add Aider later:  pipx install aider-chat  (or)  pip install --user aider-chat"
+      INSTALL_AIDER=false
+    else
+      fail "could not install Aider, and no other CLI was selected."
+      echo
+      echo "Install Aider manually, then re-run this script:"
+      echo "    sudo apt install pipx      # Debian/Ubuntu/Mint"
+      echo "    pipx install aider-chat"
+      echo "    pipx ensurepath"
+      echo
+      echo "Or pick a different mode by re-running 'bash linux/install.sh'."
+      exit 1
+    fi
   fi
 fi
 

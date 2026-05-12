@@ -73,14 +73,18 @@ bash linux/install.sh        # Linux/macOS
 # or:
 powershell -ExecutionPolicy Bypass -File windows\install.ps1   # Windows
 
-# 3. Use (open a new terminal first)
-claude-deep      # complex tasks
-claude-fast      # routine tasks
-aider-deep       # if you chose Aider, no Anthropic account needed
-aider-fast
+# 3. Use (open a new terminal first) — pick the wrappers that match the mode you chose
+#    Installed Aider (no Anthropic account required):
+aider-deep       # complex tasks  → Kimi K2.6
+aider-fast       # routine tasks  → Qwen3-Next 80B
+#    Installed Claude Code:
+claude-deep      # complex tasks  → Kimi K2.6
+claude-fast      # routine tasks  → Qwen3-Next 80B
 ```
 
-The installer prompts for your API key, detects which CLI you have, sets up a local proxy, and tests both routes.
+The installer prompts for your API key, detects which CLI you have (or installs Aider for you if you pick mode 2), sets up a local proxy, and tests both routes.
+
+> **No Anthropic account?** When the installer asks "Pick an install mode", press **`2`** (or just Enter — it's the default). You'll get `aider-deep` / `aider-fast` and never need to log in to Anthropic.
 
 ---
 
@@ -221,14 +225,17 @@ Cost note: the boost adds ~1100 input tokens to every request. With NVIDIA free-
 
 Across all platforms:
 
-- **Claude Code** already installed (`claude` in PATH). [Install instructions](https://docs.anthropic.com/en/docs/claude-code).
 - **Python 3.10+** with `pip`.
 - An **NVIDIA API key** (free) from [build.nvidia.com](https://build.nvidia.com).
 - **Internet access** to NVIDIA's API endpoint.
+- **At least one CLI client** — either:
+  - **Claude Code** ([install](https://docs.anthropic.com/en/docs/claude-code)) — requires an Anthropic account, **OR**
+  - **Aider** — open-source, no account needed. The installer will install it for you if missing.
 
 Linux/macOS additional:
 
 - `bash`, `curl`, `python3-venv` (Debian/Ubuntu/Mint: `sudo apt install python3-venv`).
+- `pipx` recommended on modern Debian/Ubuntu/Mint (23.04+) so the installer can drop in Aider cleanly: `sudo apt install pipx`.
 
 Windows additional:
 
